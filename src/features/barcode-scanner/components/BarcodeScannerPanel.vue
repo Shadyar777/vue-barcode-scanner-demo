@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount } from 'vue'
+import { computed, onBeforeUnmount, useTemplateRef } from 'vue'
 import { useBarcodeScanner } from '../composables/useBarcodeScanner'
+
+const videoRef = useTemplateRef<HTMLVideoElement>('videoRef')
 
 const {
   autoPauseAfterFirstScan,
@@ -11,11 +13,13 @@ const {
   isScanning,
   lastBarcodeFormat,
   lastBarcodeValue,
+  lastDebugPayload,
+  resetDebugStats,
+  scanMetrics,
   startScanning,
   statusText,
   stopCamera,
-  videoRef,
-} = useBarcodeScanner()
+} = useBarcodeScanner(videoRef)
 
 const startButtonText = computed(() => {
   if (!isCameraActive.value) {
@@ -35,6 +39,14 @@ const formattedTime = (date: Date): string =>
     minute: '2-digit',
     second: '2-digit',
   }).format(date)
+
+const formatMs = (value: number): string => `${value.toFixed(1)} мс`
+
+const debugJson = computed(() =>
+  lastDebugPayload.value
+    ? JSON.stringify(lastDebugPayload.value, null, 2)
+    : 'Сначала отсканируйте штрихкод',
+)
 
 onBeforeUnmount(() => {
   stopCamera()
@@ -96,6 +108,40 @@ onBeforeUnmount(() => {
       <p v-if="lastBarcodeFormat"><strong>Формат:</strong> {{ lastBarcodeFormat }}</p>
     </div>
 
+    <section class="grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-900">Debug сканирования</h2>
+        <button
+          class="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 transition hover:bg-slate-100"
+          type="button"
+          @click="resetDebugStats"
+        >
+          Сбросить метрики
+        </button>
+      </div>
+
+      <div class="grid gap-1 text-sm text-slate-700">
+        <p><strong>Попыток detect:</strong> {{ scanMetrics.attempts }}</p>
+        <p><strong>Успешных распознаваний:</strong> {{ scanMetrics.successfulScans }}</p>
+        <p><strong>Последний detect:</strong> {{ formatMs(scanMetrics.lastDetectDurationMs) }}</p>
+        <p>
+          <strong>Среднее время detect:</strong>
+          {{ formatMs(scanMetrics.averageDetectDurationMs) }}
+        </p>
+        <p>
+          <strong>Время последнего успешного detect:</strong>
+          {{ formatMs(scanMetrics.lastSuccessfulDetectDurationMs) }}
+        </p>
+      </div>
+    </section>
+
+    <section class="grid gap-2 rounded-xl border border-slate-200 bg-white p-3">
+      <h2 class="text-lg font-semibold text-slate-900">Данные последнего barcode</h2>
+      <pre
+        class="overflow-auto rounded-md bg-slate-900 p-3 text-xs leading-5 text-slate-100"
+      ><code>{{ debugJson }}</code></pre>
+    </section>
+
     <section class="grid gap-2">
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold text-slate-900">История сканирований</h2>
@@ -122,6 +168,7 @@ onBeforeUnmount(() => {
         >
           <p><strong>Значение:</strong> {{ record.value }}</p>
           <p><strong>Формат:</strong> {{ record.format }}</p>
+          <p><strong>Время detect:</strong> {{ formatMs(record.detectDurationMs) }}</p>
           <p><strong>Время:</strong> {{ formattedTime(record.scannedAt) }}</p>
         </li>
       </ul>

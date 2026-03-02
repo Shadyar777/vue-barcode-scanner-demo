@@ -1,5 +1,9 @@
-import { computed, ref } from 'vue'
-import type { BarcodeScanRecord } from '../types'
+import { computed, ref, type Ref } from 'vue'
+import type {
+  BarcodeDebugPayload,
+  BarcodeScanMetrics,
+  BarcodeScanRecord,
+} from '../types'
 
 const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   video: { facingMode: { ideal: 'environment' } },
@@ -16,12 +20,43 @@ const getErrorMessage = (error: unknown): string => {
   return 'Неизвестная ошибка'
 }
 
-export const useBarcodeScanner = () => {
-  const videoRef = ref<HTMLVideoElement | null>(null)
+const toDebugPayload = (
+  barcode: DetectedBarcode,
+  detectDurationMs: number,
+): BarcodeDebugPayload => ({
+  rawValue: barcode.rawValue || 'Значение пустое',
+  format: barcode.format || 'unknown',
+  boundingBox: barcode.boundingBox
+    ? {
+        x: barcode.boundingBox.x,
+        y: barcode.boundingBox.y,
+        width: barcode.boundingBox.width,
+        height: barcode.boundingBox.height,
+      }
+    : null,
+  cornerPoints: (barcode.cornerPoints || []).map((point) => ({
+    x: point.x,
+    y: point.y,
+  })),
+  detectDurationMs,
+  scannedAtIso: new Date().toISOString(),
+})
+
+export const useBarcodeScanner = (
+  videoRef: Readonly<Ref<HTMLVideoElement | null>>,
+) => {
   const statusText = ref('Нажмите кнопку, чтобы открыть камеру')
   const lastBarcodeValue = ref('Пока ничего не найдено')
   const lastBarcodeFormat = ref('')
   const history = ref<BarcodeScanRecord[]>([])
+  const lastDebugPayload = ref<BarcodeDebugPayload | null>(null)
+  const scanMetrics = ref<BarcodeScanMetrics>({
+    attempts: 0,
+    successfulScans: 0,
+    lastDetectDurationMs: 0,
+    averageDetectDurationMs: 0,
+    lastSuccessfulDetectDurationMs: 0,
+  })
   const isScanning = ref(false)
   const autoPauseAfterFirstScan = ref(true)
 
@@ -29,15 +64,17 @@ export const useBarcodeScanner = () => {
     () =>
       typeof window !== 'undefined' &&
       'BarcodeDetector' in window &&
-      !!navigator.mediaDevices?.getUserMedia
+      !!navigator.mediaDevices?.getUserMedia,
   )
 
   const stream = ref<MediaStream | null>(null)
   const isCameraActive = computed(() => stream.value !== null)
+
   let detector: BarcodeDetector | null = null
   let rafId: number | null = null
   let nextRecordId = 1
   let lastRecordedSignature: string | null = null
+  let totalDetectDurationMs = 0
 
   const cancelLoop = () => {
     if (rafId !== null) {
@@ -69,7 +106,7 @@ export const useBarcodeScanner = () => {
     }
   }
 
-  const appendToHistory = (barcode: DetectedBarcode) => {
+  const appendToHistory = (barcode: DetectedBarcode, detectDurationMs: number) => {
     const signature = `${barcode.format}:${barcode.rawValue}`
     if (lastRecordedSignature === signature) {
       return
@@ -81,14 +118,19 @@ export const useBarcodeScanner = () => {
       id: nextRecordId++,
       value: barcode.rawValue || 'Значение пустое',
       format: barcode.format || 'unknown',
+      detectDurationMs,
       scannedAt: new Date(),
     })
   }
 
-  const handleDetectedBarcode = (barcode: DetectedBarcode) => {
+  const handleDetectedBarcode = (
+    barcode: DetectedBarcode,
+    detectDurationMs: number,
+  ) => {
     lastBarcodeValue.value = barcode.rawValue || 'Значение пустое'
     lastBarcodeFormat.value = barcode.format || ''
-    appendToHistory(barcode)
+    lastDebugPayload.value = toDebugPayload(barcode, detectDurationMs)
+    appendToHistory(barcode, detectDurationMs)
 
     if (autoPauseAfterFirstScan.value) {
       pauseScanning('Штрихкод найден. Сканирование на паузе')
@@ -98,6 +140,14 @@ export const useBarcodeScanner = () => {
     statusText.value = 'Штрихкод найден'
   }
 
+  const updateMetrics = (detectDurationMs: number) => {
+    totalDetectDurationMs += detectDurationMs
+    scanMetrics.value.attempts += 1
+    scanMetrics.value.lastDetectDurationMs = detectDurationMs
+    scanMetrics.value.averageDetectDurationMs =
+      totalDetectDurationMs / scanMetrics.value.attempts
+  }
+
   const scanLoop = async (): Promise<void> => {
     if (!isScanning.value || !detector || !videoRef.value) {
       return
@@ -105,10 +155,15 @@ export const useBarcodeScanner = () => {
 
     try {
       if (videoRef.value.readyState >= READY_STATE_WITH_DATA) {
+        const detectStartedAt = performance.now()
         const barcodes = await detector.detect(videoRef.value)
+        const detectDurationMs = performance.now() - detectStartedAt
+        updateMetrics(detectDurationMs)
 
         if (barcodes.length > 0) {
-          handleDetectedBarcode(barcodes[0])
+          scanMetrics.value.successfulScans += 1
+          scanMetrics.value.lastSuccessfulDetectDurationMs = detectDurationMs
+          handleDetectedBarcode(barcodes[0], detectDurationMs)
         }
       }
     } catch (error) {
@@ -145,7 +200,9 @@ export const useBarcodeScanner = () => {
     }
 
     const formats = await globalThis.BarcodeDetector.getSupportedFormats()
-    detector = new globalThis.BarcodeDetector(formats.length > 0 ? { formats } : undefined)
+    detector = new globalThis.BarcodeDetector(
+      formats.length > 0 ? { formats } : undefined,
+    )
   }
 
   const startScanning = async () => {
@@ -180,6 +237,18 @@ export const useBarcodeScanner = () => {
     lastRecordedSignature = null
   }
 
+  const resetDebugStats = () => {
+    totalDetectDurationMs = 0
+    scanMetrics.value = {
+      attempts: 0,
+      successfulScans: 0,
+      lastDetectDurationMs: 0,
+      averageDetectDurationMs: 0,
+      lastSuccessfulDetectDurationMs: 0,
+    }
+    lastDebugPayload.value = null
+  }
+
   return {
     autoPauseAfterFirstScan,
     clearHistory,
@@ -189,10 +258,12 @@ export const useBarcodeScanner = () => {
     isScanning,
     lastBarcodeFormat,
     lastBarcodeValue,
+    lastDebugPayload,
     pauseScanning,
+    resetDebugStats,
+    scanMetrics,
     startScanning,
     statusText,
     stopCamera,
-    videoRef,
   }
 }
