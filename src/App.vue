@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref } from 'vue'
 
-const videoRef = ref(null)
+const videoRef = ref<HTMLVideoElement | null>(null)
 const statusText = ref('Нажмите кнопку, чтобы открыть камеру')
 const barcodeValue = ref('Пока ничего не найдено')
 const barcodeFormat = ref('')
@@ -12,11 +12,19 @@ const hasBarcodeSupport =
   'BarcodeDetector' in window &&
   !!navigator.mediaDevices?.getUserMedia
 
-let stream = null
-let detector = null
-let rafId = null
+let stream: MediaStream | null = null
+let detector: BarcodeDetector | null = null
+let rafId: number | null = null
 
-const stopScanner = () => {
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  return 'Неизвестная ошибка'
+}
+
+const stopScanner = (): void => {
   isScanning.value = false
 
   if (rafId) {
@@ -50,7 +58,7 @@ const scanLoop = async () => {
       }
     }
   } catch (error) {
-    statusText.value = `Ошибка распознавания: ${error.message}`
+    statusText.value = `Ошибка распознавания: ${getErrorMessage(error)}`
     stopScanner()
     return
   }
@@ -92,7 +100,9 @@ const startScanner = async () => {
     statusText.value = 'Камера активна. Наведите на штрихкод'
     scanLoop()
   } catch (error) {
-    statusText.value = `Не удалось запустить сканер: ${error.message}`
+    console.log(`Не удалось запустить сканер: ${getErrorMessage(error)}`);
+    
+    statusText.value = `Не удалось запустить сканер: ${getErrorMessage(error)}`
     stopScanner()
   }
 }

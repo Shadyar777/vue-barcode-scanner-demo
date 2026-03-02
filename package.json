@@ -8,6 +8,8 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:host": "vite --host",
+    "type-check": "vue-tsc --noEmit -p tsconfig.json",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -18,7 +20,9 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.2",
+    "typescript": "^5.9.2",
     "vite": "^7.2.4",
-    "vite-plugin-vue-devtools": "^8.0.5"
+    "vite-plugin-vue-devtools": "^8.0.5",
+    "vue-tsc": "^3.0.6"
   }
 }
