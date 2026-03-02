@@ -1,16 +1,14 @@
 import { computed, ref, type Ref } from 'vue'
-import type {
-  BarcodeDebugPayload,
-  BarcodeScanMetrics,
-  BarcodeScanRecord,
-} from '../types'
+import type { BarcodeDebugPayload, BarcodeScanMetrics, BarcodeScanRecord } from '../types'
 
 const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   video: { facingMode: { ideal: 'environment' } },
   audio: false,
 }
 
-const READY_STATE_WITH_DATA = HTMLMediaElement.HAVE_CURRENT_DATA
+const DEFAULT_SCAN_INTERVAL_MS = 120
+const MAX_HISTORY_RECORDS = 100
+const FALLBACK_READY_STATE_WITH_DATA = 2
 
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) {
@@ -22,7 +20,7 @@ const getErrorMessage = (error: unknown): string => {
 
 const toDebugPayload = (
   barcode: DetectedBarcode,
-  detectDurationMs: number,
+  detectDurationMs: number
 ): BarcodeDebugPayload => ({
   rawValue: barcode.rawValue || 'Значение пустое',
   format: barcode.format || 'unknown',
@@ -42,9 +40,12 @@ const toDebugPayload = (
   scannedAtIso: new Date().toISOString(),
 })
 
-export const useBarcodeScanner = (
-  videoRef: Readonly<Ref<HTMLVideoElement | null>>,
-) => {
+export const useBarcodeScanner = (videoRef: Readonly<Ref<HTMLVideoElement | null>>) => {
+  const readyStateWithData =
+    typeof HTMLMediaElement !== 'undefined'
+      ? HTMLMediaElement.HAVE_CURRENT_DATA
+      : FALLBACK_READY_STATE_WITH_DATA
+
   const statusText = ref('Нажмите кнопку, чтобы открыть камеру')
   const lastBarcodeValue = ref('Пока ничего не найдено')
   const lastBarcodeFormat = ref('')
@@ -64,28 +65,34 @@ export const useBarcodeScanner = (
     () =>
       typeof window !== 'undefined' &&
       'BarcodeDetector' in window &&
-      !!navigator.mediaDevices?.getUserMedia,
+      !!navigator.mediaDevices?.getUserMedia
   )
 
   const stream = ref<MediaStream | null>(null)
   const isCameraActive = computed(() => stream.value !== null)
 
   let detector: BarcodeDetector | null = null
-  let rafId: number | null = null
+  let scanTimeoutId: ReturnType<typeof setTimeout> | null = null
+  let scanSessionId = 0
   let nextRecordId = 1
   let lastRecordedSignature: string | null = null
   let totalDetectDurationMs = 0
 
-  const cancelLoop = () => {
-    if (rafId !== null) {
-      cancelAnimationFrame(rafId)
-      rafId = null
+  const invalidateScanSession = () => {
+    scanSessionId += 1
+  }
+
+  const cancelScheduledScan = () => {
+    if (scanTimeoutId !== null) {
+      clearTimeout(scanTimeoutId)
+      scanTimeoutId = null
     }
   }
 
   const pauseScanning = (message?: string) => {
+    invalidateScanSession()
     isScanning.value = false
-    cancelLoop()
+    cancelScheduledScan()
 
     if (message) {
       statusText.value = message
@@ -114,19 +121,20 @@ export const useBarcodeScanner = (
 
     lastRecordedSignature = signature
 
-    history.value.unshift({
+    history.value.push({
       id: nextRecordId++,
       value: barcode.rawValue || 'Значение пустое',
       format: barcode.format || 'unknown',
       detectDurationMs,
       scannedAt: new Date(),
     })
+
+    if (history.value.length > MAX_HISTORY_RECORDS) {
+      history.value.splice(0, history.value.length - MAX_HISTORY_RECORDS)
+    }
   }
 
-  const handleDetectedBarcode = (
-    barcode: DetectedBarcode,
-    detectDurationMs: number,
-  ) => {
+  const handleDetectedBarcode = (barcode: DetectedBarcode, detectDurationMs: number) => {
     lastBarcodeValue.value = barcode.rawValue || 'Значение пустое'
     lastBarcodeFormat.value = barcode.format || ''
     lastDebugPayload.value = toDebugPayload(barcode, detectDurationMs)
@@ -144,20 +152,37 @@ export const useBarcodeScanner = (
     totalDetectDurationMs += detectDurationMs
     scanMetrics.value.attempts += 1
     scanMetrics.value.lastDetectDurationMs = detectDurationMs
-    scanMetrics.value.averageDetectDurationMs =
-      totalDetectDurationMs / scanMetrics.value.attempts
+    scanMetrics.value.averageDetectDurationMs = totalDetectDurationMs / scanMetrics.value.attempts
   }
 
-  const scanLoop = async (): Promise<void> => {
-    if (!isScanning.value || !detector || !videoRef.value) {
+  const scheduleNextScan = (sessionId: number, delayMs: number) => {
+    if (!isScanning.value || sessionId !== scanSessionId) {
       return
     }
 
+    cancelScheduledScan()
+    scanTimeoutId = setTimeout(() => {
+      void scanLoop(sessionId)
+    }, delayMs)
+  }
+
+  const scanLoop = async (sessionId: number): Promise<void> => {
+    if (!isScanning.value || sessionId !== scanSessionId || !detector || !videoRef.value) {
+      return
+    }
+
+    let detectDurationMs = 0
+
     try {
-      if (videoRef.value.readyState >= READY_STATE_WITH_DATA) {
+      if (videoRef.value.readyState >= readyStateWithData) {
         const detectStartedAt = performance.now()
         const barcodes = await detector.detect(videoRef.value)
-        const detectDurationMs = performance.now() - detectStartedAt
+        detectDurationMs = performance.now() - detectStartedAt
+
+        if (!isScanning.value || sessionId !== scanSessionId) {
+          return
+        }
+
         updateMetrics(detectDurationMs)
 
         if (barcodes.length > 0) {
@@ -167,17 +192,18 @@ export const useBarcodeScanner = (
         }
       }
     } catch (error) {
-      pauseScanning(`Ошибка распознавания: ${getErrorMessage(error)}`)
+      if (sessionId === scanSessionId) {
+        pauseScanning(`Ошибка распознавания: ${getErrorMessage(error)}`)
+      }
       return
     }
 
-    if (!isScanning.value) {
+    if (!isScanning.value || sessionId !== scanSessionId) {
       return
     }
 
-    rafId = requestAnimationFrame(() => {
-      void scanLoop()
-    })
+    const nextDelayMs = Math.max(0, DEFAULT_SCAN_INTERVAL_MS - detectDurationMs)
+    scheduleNextScan(sessionId, nextDelayMs)
   }
 
   const ensureCamera = async () => {
@@ -200,9 +226,7 @@ export const useBarcodeScanner = (
     }
 
     const formats = await globalThis.BarcodeDetector.getSupportedFormats()
-    detector = new globalThis.BarcodeDetector(
-      formats.length > 0 ? { formats } : undefined,
-    )
+    detector = new globalThis.BarcodeDetector(formats.length > 0 ? { formats } : undefined)
   }
 
   const startScanning = async () => {
@@ -215,6 +239,9 @@ export const useBarcodeScanner = (
       return
     }
 
+    const sessionId = scanSessionId + 1
+    scanSessionId = sessionId
+
     try {
       statusText.value = stream.value
         ? 'Возобновляю сканирование...'
@@ -222,13 +249,22 @@ export const useBarcodeScanner = (
 
       lastRecordedSignature = null
       await ensureDetector()
+      if (sessionId !== scanSessionId) {
+        return
+      }
+
       await ensureCamera()
+      if (sessionId !== scanSessionId) {
+        return
+      }
 
       isScanning.value = true
       statusText.value = 'Камера активна. Наведите на штрихкод'
-      void scanLoop()
+      scheduleNextScan(sessionId, 0)
     } catch (error) {
-      stopCamera(`Не удалось запустить сканер: ${getErrorMessage(error)}`)
+      if (sessionId === scanSessionId) {
+        stopCamera(`Не удалось запустить сканер: ${getErrorMessage(error)}`)
+      }
     }
   }
 

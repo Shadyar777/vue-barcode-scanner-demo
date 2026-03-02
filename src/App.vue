@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BarcodeScannerPanel from './features/barcode-scanner/components/BarcodeScannerPanel.vue'
+import BarcodeScannerPanel from './features/barcode-scanner/components/BarcodeScannerPanel.vue';
 </script>
 
 <template>
