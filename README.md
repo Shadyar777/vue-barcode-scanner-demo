@@ -1,38 +1,43 @@
-# .
+# Vue 3 Barcode Scanner
 
-This template should help get you started developing with Vue 3 in Vite.
+Приложение на Vue 3 для сканирования штрихкодов через камеру устройства с использованием `Barcode Detection API`.
 
-## Recommended IDE Setup
+## Что умеет
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+- Запуск и остановка камеры.
+- Сканирование штрихкодов в реальном времени.
+- Автопауза после первого успешного скана.
+- Показ последнего результата (значение и формат).
+- Debug-блок с метриками производительности (`attempts`, `successfulScans`, длительности `detect`).
+- История сканирований с ограничением размера.
+- Защита от async race-condition при `start/pause/stop`.
+- Throttled-цикл сканирования (вместо непрерывного `requestAnimationFrame`) для снижения нагрузки на CPU.
 
-## Recommended Browser Setup
+## Технологии
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+- Vue 3 (`<script setup>`, Composition API)
+- TypeScript (strict mode)
+- Vite 7
+- Tailwind CSS 4
 
-## Customize configuration
+## Требования
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+- Node.js: `^20.19.0 || >=22.12.0`
+- Современный браузер с поддержкой:
+  - `navigator.mediaDevices.getUserMedia`
+  - `BarcodeDetector` (обычно Chromium-based браузеры)
+- Доступ к камере (разрешение пользователя).
+- Запуск в secure context (`https` или `localhost`).
 
-## Project Setup
 
-```sh
-yarn
-```
+## Поведение сканера
 
-### Compile and Hot-Reload for Development
+- Сканирование выполняется с интервалом (`DEFAULT_SCAN_INTERVAL_MS`) и не перегружает устройство лишними вызовами `detect`.
+- Для каждого цикла используется `scanSessionId`, чтобы не применять устаревшие async-результаты после остановки/паузы.
+- История ограничена `MAX_HISTORY_RECORDS`, чтобы не раздувать память и DOM.
 
-```sh
-yarn dev
-```
+## Ограничения
 
-### Compile and Minify for Production
+- Если браузер не поддерживает `Barcode Detection API`, сканер покажет предупреждение и не запустится.
+- Поддержка форматов штрихкодов зависит от браузера и устройства.
 
-```sh
-yarn build
-```
