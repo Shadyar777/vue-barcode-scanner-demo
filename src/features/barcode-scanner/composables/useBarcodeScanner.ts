@@ -29,7 +29,7 @@ export const useBarcodeScanner = () => {
     () =>
       typeof window !== 'undefined' &&
       'BarcodeDetector' in window &&
-      !!navigator.mediaDevices?.getUserMedia,
+      !!navigator.mediaDevices?.getUserMedia
   )
 
   const stream = ref<MediaStream | null>(null)
@@ -145,9 +145,7 @@ export const useBarcodeScanner = () => {
     }
 
     const formats = await globalThis.BarcodeDetector.getSupportedFormats()
-    detector = new globalThis.BarcodeDetector(
-      formats.length > 0 ? { formats } : undefined,
-    )
+    detector = new globalThis.BarcodeDetector(formats.length > 0 ? { formats } : undefined)
   }
 
   const startScanning = async () => {

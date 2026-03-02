@@ -44,9 +44,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
     <header class="grid gap-3">
-      <h1 class="text-2xl font-bold tracking-tight text-slate-900">
-        Сканер штрихкода
-      </h1>
+      <h1 class="text-2xl font-bold tracking-tight text-slate-900">Сканер штрихкода</h1>
       <p class="text-sm text-slate-600">{{ statusText }}</p>
       <p
         v-if="!hasBarcodeSupport"
@@ -87,7 +85,7 @@ onBeforeUnmount(() => {
 
     <video
       ref="videoRef"
-      class="max-h-[420px] w-full rounded-xl bg-black object-cover shadow"
+      class="max-h-105 w-full rounded-xl bg-black object-cover shadow"
       autoplay
       playsinline
       muted
@@ -111,9 +109,7 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
-      <p v-if="history.length === 0" class="text-sm text-slate-500">
-        Сканирований пока нет
-      </p>
+      <p v-if="history.length === 0" class="text-sm text-slate-500">Сканирований пока нет</p>
 
       <ul
         v-else
