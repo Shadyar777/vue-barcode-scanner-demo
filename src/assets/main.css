@@ -1,9 +1,1 @@
-@import './base.css';
 @import "tailwindcss";
-
-#app {
-  max-width: 900px;
-  margin: 0 auto;
-  padding: 2rem;
-  font-weight: normal;
-}

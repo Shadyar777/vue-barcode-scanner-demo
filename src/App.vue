@@ -1,4 +1,4 @@
-<script setup>
+<script setup lang="ts">
 import { onBeforeUnmount, ref } from 'vue'
 
 const videoRef = ref(null)
@@ -71,8 +71,8 @@ const startScanner = async () => {
   try {
     statusText.value = 'Запрашиваю доступ к камере...'
 
-    const formats = await window.BarcodeDetector.getSupportedFormats()
-    detector = new window.BarcodeDetector(
+    const formats = await globalThis.BarcodeDetector.getSupportedFormats()
+    detector = new globalThis.BarcodeDetector(
       formats.length > 0 ? { formats } : undefined,
     )
 
@@ -103,66 +103,34 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="scanner">
-    <h1>Сканер штрихкода</h1>
+  <main class="mx-auto grid w-full max-w-3xl gap-4 p-4 sm:p-8">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900">
+      Сканер штрихкода
+    </h1>
 
-    <button class="scanner__button" type="button" @click="startScanner">
+    <button
+      class="w-fit rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700 active:scale-[0.99]"
+      type="button"
+      @click="startScanner"
+    >
       Открыть камеру
     </button>
 
-    <p class="scanner__status">{{ statusText }}</p>
+    <p class="text-sm text-slate-600">{{ statusText }}</p>
 
-    <video ref="videoRef" class="scanner__video" autoplay playsinline muted />
+    <video
+      ref="videoRef"
+      class="max-h-105 w-full rounded-xl bg-black object-cover shadow"
+      autoplay
+      playsinline
+      muted
+    />
 
-    <div class="scanner__result">
+    <div class="rounded-lg bg-slate-100 p-3 text-slate-900">
       <p><strong>Результат:</strong> {{ barcodeValue }}</p>
-      <p v-if="barcodeFormat"><strong>Формат:</strong> {{ barcodeFormat }}</p>
+      <p v-if="barcodeFormat" class="mt-1">
+        <strong>Формат:</strong> {{ barcodeFormat }}
+      </p>
     </div>
   </main>
 </template>
-
-<style scoped>
-.scanner {
-  display: grid;
-  gap: 1rem;
-  width: min(720px, 100%);
-  margin: 0 auto;
-}
-
-h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.scanner__button {
-  width: fit-content;
-  padding: 0.65rem 1rem;
-  border: 0;
-  border-radius: 0.6rem;
-  background: #1867c0;
-  color: #fff;
-  cursor: pointer;
-}
-
-.scanner__button:hover {
-  background: #1459a8;
-}
-
-.scanner__status {
-  color: #555;
-}
-
-.scanner__video {
-  width: 100%;
-  max-height: 420px;
-  border-radius: 0.8rem;
-  background: #000;
-  object-fit: cover;
-}
-
-.scanner__result {
-  padding: 0.75rem;
-  border-radius: 0.6rem;
-  background: #f5f6f8;
-}
-</style>
