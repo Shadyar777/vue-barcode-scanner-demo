@@ -70,7 +70,7 @@ onBeforeUnmount(() => {
         class="w-fit rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-900 disabled:cursor-not-allowed disabled:bg-slate-400"
         type="button"
         :disabled="!isCameraActive"
-        @click="stopCamera"
+        @click="stopCamera()"
       >
         Остановить камеру
       </button>

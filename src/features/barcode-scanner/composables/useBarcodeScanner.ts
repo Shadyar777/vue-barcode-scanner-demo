@@ -32,9 +32,8 @@ export const useBarcodeScanner = () => {
       !!navigator.mediaDevices?.getUserMedia,
   )
 
-  const isCameraActive = computed(() => stream !== null)
-
-  let stream: MediaStream | null = null
+  const stream = ref<MediaStream | null>(null)
+  const isCameraActive = computed(() => stream.value !== null)
   let detector: BarcodeDetector | null = null
   let rafId: number | null = null
   let nextRecordId = 1
@@ -60,9 +59,9 @@ export const useBarcodeScanner = () => {
     pauseScanning(message)
     lastRecordedSignature = null
 
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop())
-      stream = null
+    if (stream.value) {
+      stream.value.getTracks().forEach((track) => track.stop())
+      stream.value = null
     }
 
     if (videoRef.value) {
@@ -127,7 +126,7 @@ export const useBarcodeScanner = () => {
   }
 
   const ensureCamera = async () => {
-    if (stream) {
+    if (stream.value) {
       return
     }
 
@@ -135,8 +134,8 @@ export const useBarcodeScanner = () => {
       throw new Error('Видео элемент не найден')
     }
 
-    stream = await navigator.mediaDevices.getUserMedia(CAMERA_CONSTRAINTS)
-    videoRef.value.srcObject = stream
+    stream.value = await navigator.mediaDevices.getUserMedia(CAMERA_CONSTRAINTS)
+    videoRef.value.srcObject = stream.value
     await videoRef.value.play()
   }
 
@@ -162,7 +161,7 @@ export const useBarcodeScanner = () => {
     }
 
     try {
-      statusText.value = stream
+      statusText.value = stream.value
         ? 'Возобновляю сканирование...'
         : 'Запрашиваю доступ к камере...'
 
