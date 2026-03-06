@@ -11,7 +11,7 @@ const createVideoConstraints = (preferredCamera: PreferredCamera): MediaTrackCon
 export const startCamera = async (preferredCamera: PreferredCamera): Promise<MediaStream> => {
   const mediaDevices = navigator.mediaDevices
   if (!mediaDevices?.getUserMedia) {
-    throw new Error('Camera API is not available in this browser.')
+    throw new Error('API камеры недоступен в этом браузере.')
   }
 
   const initialConstraints: MediaStreamConstraints = {

@@ -38,14 +38,14 @@ const ensureOffscreenCanvas = (
   ctx: OffscreenCanvasRenderingContext2D
 } => {
   if (typeof OffscreenCanvas === 'undefined') {
-    throw new Error('OffscreenCanvas is not supported in this browser worker.')
+    throw new Error('OffscreenCanvas не поддерживается в этом Worker-окружении браузера.')
   }
 
   if (!offscreenCanvas || !offscreenCtx) {
     offscreenCanvas = new OffscreenCanvas(width, height)
     const nextCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true, alpha: false })
     if (!nextCtx) {
-      throw new Error('Unable to create OffscreenCanvas context in worker.')
+      throw new Error('Не удалось создать контекст OffscreenCanvas в Worker.')
     }
 
     offscreenCtx = nextCtx
@@ -106,7 +106,7 @@ workerScope.onmessage = (event: MessageEvent<DecodeRequest>) => {
       type: 'result',
       id: message.id,
       ms: performance.now() - startedAt,
-      error: error instanceof Error ? error.message : 'Worker decode failed',
+      error: error instanceof Error ? error.message : 'Ошибка декодирования в Worker',
     }
 
     workerScope.postMessage(response)

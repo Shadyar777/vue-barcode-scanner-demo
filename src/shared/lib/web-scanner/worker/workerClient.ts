@@ -71,17 +71,17 @@ export class WorkerClient {
     }
 
     this.worker.onerror = (event: ErrorEvent) => {
-      this.handleFatalError(new Error(event.message || 'Decoder worker crashed'))
+      this.handleFatalError(new Error(event.message || 'Worker декодера аварийно завершился'))
     }
 
     this.worker.onmessageerror = () => {
-      this.handleFatalError(new Error('Decoder worker message error'))
+      this.handleFatalError(new Error('Ошибка передачи сообщения в Worker декодера'))
     }
   }
 
   decode(frame: ImageBitmap | ImageData, formats: BarcodeFormat[]): Promise<WorkerDecodeResponse> {
     if (this.destroyed) {
-      return Promise.reject(new Error('Decoder worker is already destroyed'))
+      return Promise.reject(new Error('Worker декодера уже уничтожен'))
     }
 
     if (this.fatalError) {
@@ -98,7 +98,7 @@ export class WorkerClient {
         }
 
         this.pending.delete(id)
-        request.reject(new Error(`Decoder worker timeout after ${this.decodeTimeoutMs}ms`))
+        request.reject(new Error(`Таймаут ответа Worker декодера (${this.decodeTimeoutMs} мс)`))
       }, this.decodeTimeoutMs)
 
       this.pending.set(id, { resolve, reject, timeoutId })
@@ -124,7 +124,7 @@ export class WorkerClient {
           frame.close()
         }
 
-        reject(normalizeError(error, 'Unable to send frame to decoder worker.'))
+        reject(normalizeError(error, 'Не удалось отправить кадр в Worker декодера.'))
       }
     })
   }
@@ -133,7 +133,7 @@ export class WorkerClient {
     this.destroyed = true
     this.worker.terminate()
 
-    this.rejectAllPending(new Error('Decoder worker was terminated'))
+    this.rejectAllPending(new Error('Worker декодера остановлен'))
   }
 
   private handleFatalError(error: Error): void {

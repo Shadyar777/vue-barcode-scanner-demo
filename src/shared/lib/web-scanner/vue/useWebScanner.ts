@@ -67,7 +67,7 @@ export const useWebScanner = (options: ScannerOptions = {}): UseWebScannerResult
 
     const videoEl = videoElRef.value
     if (!videoEl) {
-      const videoError = new Error('Video element is not attached yet.')
+      const videoError = new Error('Видео-элемент ещё не привязан.')
       error.value = videoError
       throw videoError
     }

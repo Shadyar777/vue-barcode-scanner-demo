@@ -244,7 +244,7 @@ export const createScanner = (options: ScannerOptions = {}): Scanner => {
         const nowTs = Date.now()
         if (nowTs - lastDecodeErrorTs > 1000) {
           lastDecodeErrorTs = nowTs
-          options.onError?.(normalizeError(error, 'Scanner decode failed.'))
+          options.onError?.(normalizeError(error, 'Ошибка декодирования сканера.'))
         }
 
         return false
@@ -290,7 +290,7 @@ export const createScanner = (options: ScannerOptions = {}): Scanner => {
       try {
         return await createNativeBarcodeDetectorEngine()
       } catch (error) {
-        options.onError?.(normalizeError(error, 'Native scanner engine failed, switching to worker.'))
+        options.onError?.(normalizeError(error, 'Нативный движок сканера недоступен, переключаюсь на Worker.'))
       }
     }
 
@@ -320,7 +320,7 @@ export const createScanner = (options: ScannerOptions = {}): Scanner => {
       engineKind = nextEngine.kind
       destroyEngine(previousEngine)
     } catch (error) {
-      options.onError?.(normalizeError(error, 'Failed to switch scanner engine.'))
+      options.onError?.(normalizeError(error, 'Не удалось переключить движок сканера.'))
     } finally {
       switchingEngine = false
     }
@@ -359,7 +359,7 @@ export const createScanner = (options: ScannerOptions = {}): Scanner => {
         cleanup()
 
         const mappedError =
-          error instanceof Error ? error : normalizeError(error, 'Failed to start scanner engine.')
+          error instanceof Error ? error : normalizeError(error, 'Не удалось запустить движок сканера.')
 
         options.onError?.(mappedError)
         throw mappedError

@@ -22,7 +22,6 @@ export const createZXingWorkerEngine = (): ScannerEngine => {
       try {
         return await decodeOnce()
       } catch (error) {
-        console.log('error', error)
         if (
           preferImageBitmap &&
           error instanceof Error &&

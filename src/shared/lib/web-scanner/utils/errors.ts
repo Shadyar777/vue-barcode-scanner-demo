@@ -12,32 +12,32 @@ const hasName = (error: unknown, name: string): boolean => {
 
 export const toCameraError = (error: unknown): Error => {
   if (hasName(error, 'NotAllowedError') || hasName(error, 'SecurityError')) {
-    return new Error('Camera permission denied. Allow camera access in browser settings and tap Start again.')
+    return new Error('Доступ к камере запрещён. Разрешите доступ в браузере и нажмите «Старт» ещё раз.')
   }
 
   if (hasName(error, 'NotReadableError') || hasName(error, 'TrackStartError')) {
-    return new Error('Camera is busy. Close other tabs/apps using the camera and try again.')
+    return new Error('Камера занята. Закройте другие вкладки/приложения, использующие камеру, и попробуйте снова.')
   }
 
   if (hasName(error, 'NotFoundError') || hasName(error, 'OverconstrainedError')) {
-    return new Error('Requested camera was not found on this device.')
+    return new Error('Запрошенная камера не найдена на устройстве.')
   }
 
   if (hasName(error, 'AbortError')) {
-    return new Error('Camera startup was interrupted. Try again.')
+    return new Error('Запуск камеры был прерван. Попробуйте снова.')
   }
 
-  return new Error(messageFromError(error) || 'Unable to access camera.')
+  return new Error(messageFromError(error) || 'Не удалось получить доступ к камере.')
 }
 
 export const toPlaybackError = (error: unknown): Error => {
   if (hasName(error, 'NotAllowedError')) {
     return new Error(
-      'Video preview did not start. On iOS Safari tap Start from a user gesture and keep the page active.'
+      'Видео-превью не запустилось. В iOS Safari нажмите «Старт» вручную и не сворачивайте страницу.'
     )
   }
 
-  return new Error(messageFromError(error) || 'Unable to start video preview.')
+  return new Error(messageFromError(error) || 'Не удалось запустить видео-превью.')
 }
 
 export const normalizeError = (error: unknown, fallbackMessage: string): Error => {

@@ -106,14 +106,14 @@ export const canUseNativeBarcodeDetector = async (requestedFormats: BarcodeForma
 
 export const createNativeBarcodeDetectorEngine = async (): Promise<ScannerEngine> => {
   if (!isNativeBarcodeDetectorAvailable()) {
-    throw new Error('Native BarcodeDetector is not available.')
+    throw new Error('Нативный BarcodeDetector недоступен.')
   }
 
   let detector: BarcodeDetector
   try {
     detector = new globalThis.BarcodeDetector()
   } catch (error) {
-    throw normalizeError(error, 'Failed to initialize native BarcodeDetector engine.')
+    throw normalizeError(error, 'Не удалось инициализировать нативный BarcodeDetector.')
   }
 
   return {

@@ -36,7 +36,7 @@ const getCanvasRefs = (video: HTMLVideoElement): CanvasRefs => {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: false })
   if (!ctx) {
-    throw new Error('Unable to create 2D canvas context for ROI extraction.')
+    throw new Error('Не удалось создать 2D-контекст canvas для извлечения ROI.')
   }
 
   const refs = { canvas, ctx }
@@ -54,7 +54,7 @@ const drawVideoRoi = (video: HTMLVideoElement, roi: RoiRect, maxWidth: number): 
   const sourceWidth = video.videoWidth
   const sourceHeight = video.videoHeight
   if (!sourceWidth || !sourceHeight) {
-    throw new Error('Video is not ready yet. Tap Start and try again.')
+    throw new Error('Видео ещё не готово. Нажмите «Старт» и попробуйте снова.')
   }
 
   const normalized = normalizeRoi(roi)
@@ -102,7 +102,7 @@ export const applyRoiAndDownscale = async (
 
   const ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: false })
   if (!ctx) {
-    throw new Error('Unable to read canvas frame for decoding.')
+    throw new Error('Не удалось прочитать кадр из canvas для декодирования.')
   }
 
   return ctx.getImageData(0, 0, width, height)

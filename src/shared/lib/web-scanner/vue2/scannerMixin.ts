@@ -60,7 +60,7 @@ export const createScannerMixin = (options: ScannerOptions = {}) => ({
       this.error = null
 
       if (!this.videoEl) {
-        const videoError = new Error('Video element is not attached yet.')
+        const videoError = new Error('Видео-элемент ещё не привязан.')
         this.error = videoError
         throw videoError
       }
