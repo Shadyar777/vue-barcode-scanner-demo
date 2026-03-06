@@ -38,6 +38,27 @@ export const DEFAULT_SCANNER_FORMATS: BarcodeFormat[] = [
 
 export const DEFAULT_SCANNER_ROI: RoiRect = { ...DEFAULT_ROI }
 
+const FORMAT_ALIASES: Record<string, BarcodeFormat> = {
+  qr: 'qr',
+  qr_code: 'qr',
+  ean_13: 'ean_13',
+  ean13: 'ean_13',
+  ean_8: 'ean_8',
+  ean8: 'ean_8',
+  upc_a: 'upc_a',
+  upca: 'upc_a',
+  upc_e: 'upc_e',
+  upce: 'upc_e',
+  code_128: 'code_128',
+  code128: 'code_128',
+  code_123: 'code_128',
+  code123: 'code_128',
+  code_39: 'code_39',
+  code39: 'code_39',
+  itf: 'itf',
+  unknown: 'unknown',
+}
+
 interface StableCandidate {
   key: string
   count: number
@@ -53,7 +74,20 @@ const normalizeFormats = (formats?: BarcodeFormat[]): BarcodeFormat[] => {
     return [...DEFAULT_SCANNER_FORMATS]
   }
 
-  return [...new Set(formats)]
+  const normalized = new Set<BarcodeFormat>()
+  for (const rawFormat of formats as unknown[]) {
+    if (typeof rawFormat !== 'string') {
+      continue
+    }
+
+    const key = rawFormat.trim().toLowerCase()
+    const canonical = FORMAT_ALIASES[key]
+    if (canonical) {
+      normalized.add(canonical)
+    }
+  }
+
+  return normalized.size > 0 ? [...normalized] : [...DEFAULT_SCANNER_FORMATS]
 }
 
 const isThenable = <T>(value: unknown): value is Promise<T> => {

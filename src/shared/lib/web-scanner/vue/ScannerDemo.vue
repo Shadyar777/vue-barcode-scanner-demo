@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed } from 'vue'
 import { useWebScanner } from './useWebScanner'
 
 const roi = {
@@ -11,6 +11,7 @@ const roi = {
 
 const { videoElRef, state, detectedCode, error, stats, start, stop, pause, resume } = useWebScanner(
   {
+    formats: ['qr', 'code_128'],
     preferredCamera: 'environment',
     roi,
     decodeFps: 15,
@@ -63,10 +64,6 @@ const onPauseResume = () => {
 
   pause()
 }
-
-watch((detectedCode) => {
-  console.log('detectedCode', detectedCode.value)
-})
 </script>
 
 <template>

@@ -8,14 +8,32 @@ const supportsImageBitmapTransfer = (): boolean => {
 
 export const createZXingWorkerEngine = (): ScannerEngine => {
   const workerClient = new WorkerClient()
-  const preferImageBitmap = supportsImageBitmapTransfer()
+  let preferImageBitmap = supportsImageBitmapTransfer()
 
   return {
     kind: 'worker',
     async detect(ctx: ScannerEngineContext) {
-      const frame = await applyRoiAndDownscale(ctx.videoEl, ctx.roi, ctx.maxWidth, preferImageBitmap)
-      const response = await workerClient.decode(frame, ctx.formats)
-      return response.result || null
+      const decodeOnce = async () => {
+        const frame = await applyRoiAndDownscale(ctx.videoEl, ctx.roi, ctx.maxWidth, preferImageBitmap)
+        const response = await workerClient.decode(frame, ctx.formats)
+        return response.result || null
+      }
+
+      try {
+        return await decodeOnce()
+      } catch (error) {
+        console.log('error', error)
+        if (
+          preferImageBitmap &&
+          error instanceof Error &&
+          error.message.toLowerCase().includes('offscreencanvas')
+        ) {
+          preferImageBitmap = false
+          return decodeOnce()
+        }
+
+        throw error
+      }
     },
     destroy() {
       workerClient.destroy()

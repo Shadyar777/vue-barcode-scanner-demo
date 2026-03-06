@@ -25,6 +25,7 @@ export interface WorkerDecodeResponse {
 interface PendingRequest {
   resolve: (response: WorkerDecodeResponse) => void
   reject: (error: Error) => void
+  timeoutId: ReturnType<typeof setTimeout>
 }
 
 const isImageBitmap = (value: unknown): value is ImageBitmap => {
@@ -35,6 +36,9 @@ export class WorkerClient {
   private readonly worker: Worker
   private requestId = 0
   private readonly pending = new Map<number, PendingRequest>()
+  private readonly decodeTimeoutMs = 2500
+  private fatalError: Error | null = null
+  private destroyed = false
 
   constructor() {
     this.worker = new Worker(new URL('./decoder.worker.ts', import.meta.url), {
@@ -53,6 +57,7 @@ export class WorkerClient {
       }
 
       this.pending.delete(data.id)
+      clearTimeout(request.timeoutId)
 
       if (data.error) {
         request.reject(new Error(data.error))
@@ -66,19 +71,37 @@ export class WorkerClient {
     }
 
     this.worker.onerror = (event: ErrorEvent) => {
-      const error = new Error(event.message || 'Decoder worker crashed')
-      for (const [, request] of this.pending.entries()) {
-        request.reject(error)
-      }
-      this.pending.clear()
+      this.handleFatalError(new Error(event.message || 'Decoder worker crashed'))
+    }
+
+    this.worker.onmessageerror = () => {
+      this.handleFatalError(new Error('Decoder worker message error'))
     }
   }
 
   decode(frame: ImageBitmap | ImageData, formats: BarcodeFormat[]): Promise<WorkerDecodeResponse> {
+    if (this.destroyed) {
+      return Promise.reject(new Error('Decoder worker is already destroyed'))
+    }
+
+    if (this.fatalError) {
+      return Promise.reject(this.fatalError)
+    }
+
     const id = ++this.requestId
 
     return new Promise<WorkerDecodeResponse>((resolve, reject) => {
-      this.pending.set(id, { resolve, reject })
+      const timeoutId = setTimeout(() => {
+        const request = this.pending.get(id)
+        if (!request) {
+          return
+        }
+
+        this.pending.delete(id)
+        request.reject(new Error(`Decoder worker timeout after ${this.decodeTimeoutMs}ms`))
+      }, this.decodeTimeoutMs)
+
+      this.pending.set(id, { resolve, reject, timeoutId })
 
       const payload: DecodeRequest = {
         type: 'decode',
@@ -95,6 +118,7 @@ export class WorkerClient {
         }
       } catch (error) {
         this.pending.delete(id)
+        clearTimeout(timeoutId)
 
         if (isImageBitmap(frame)) {
           frame.close()
@@ -106,10 +130,21 @@ export class WorkerClient {
   }
 
   destroy(): void {
+    this.destroyed = true
     this.worker.terminate()
 
+    this.rejectAllPending(new Error('Decoder worker was terminated'))
+  }
+
+  private handleFatalError(error: Error): void {
+    this.fatalError = error
+    this.rejectAllPending(error)
+  }
+
+  private rejectAllPending(error: Error): void {
     for (const [, request] of this.pending.entries()) {
-      request.reject(new Error('Decoder worker was terminated'))
+      clearTimeout(request.timeoutId)
+      request.reject(error)
     }
     this.pending.clear()
   }
